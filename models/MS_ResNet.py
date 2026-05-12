@@ -8,7 +8,7 @@ thresh = 0.5  # neuronal threshold
 lens = 0.5  # hyper-parameters of approximate function
 decay = 0.25  # decay constants
 num_classes = 1000
-time_window = 6
+time_window = 5
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
