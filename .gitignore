@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+
+# Virtual environments
+env/
+venv/
+.venv/
+
+# Training outputs
+output/
+checkpoint/
+runs/
+logs/
+
+# Model weights
+*.pth
+*.pt
+
+# SLURM logs
+*.out
+*.err
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
