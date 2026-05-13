@@ -7,9 +7,9 @@
 #SBATCH --cpus-per-task=40         # 10 workers × 4 GPU processes
 #SBATCH --gres=gpu:4
 #SBATCH --mem=200G
-#SBATCH --time=5-00:00:00
-#SBATCH --output=/work/fritzsche6/msresnet/logs/msresnet_%j.out
-#SBATCH --error=/work/fritzsche6/msresnet/logs/msresnet_%j.err
+#SBATCH --time=1-00:00:00
+#SBATCH --output=/work/fritzsche6/MS-ResNet/logs/msresnet_%j.out
+#SBATCH --error=/work/fritzsche6/MS-ResNet/logs/msresnet_%j.err
 
 # ── Environment setup ────────────────────────────────────────────────────────
 module load system/CUDA/11.6.0
@@ -19,8 +19,8 @@ conda activate qkformer
 
 # ── Paths ────────────────────────────────────────────────────────────────────
 DATA_PATH=/work/fritzsche6/qkformer/imagenet   # reuse existing ImageNet copy
-OUTPUT_DIR=/work/fritzsche6/msresnet/output
-REPO_DIR=/work/fritzsche6/msresnet/
+OUTPUT_DIR=/work/fritzsche6/MS-ResNet/output
+REPO_DIR=/work/fritzsche6/MS-ResNet/
 
 mkdir -p "$OUTPUT_DIR" /work/fritzsche6/msresnet/logs
 
