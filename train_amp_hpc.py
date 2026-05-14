@@ -156,8 +156,8 @@ if __name__ == '__main__':
     # device_id handles clusters that restrict CUDA_VISIBLE_DEVICES per-process
     # (each process sees only 1 GPU as device 0) as well as the shared-visibility case
     device_id = args.local_rank % max(torch.cuda.device_count(), 1)
-    torch.distributed.init_process_group(backend='nccl')
     torch.cuda.set_device(device_id)
+    torch.distributed.init_process_group(backend='nccl')
 
     SEED = 445
     torch.manual_seed(SEED)
