@@ -149,8 +149,9 @@ if __name__ == '__main__':
     parser.add_argument('--local_rank',
                         default=-1,
                         type=int,
-                        help='node rank for distributed training')
+                        help='node rank for distributed training (legacy; torchrun uses LOCAL_RANK env var)')
     args = parser.parse_args()
+    args.local_rank = int(os.environ.get('LOCAL_RANK', args.local_rank))
     print(args.local_rank)
     torch.distributed.init_process_group(backend='nccl')
     torch.cuda.set_device(args.local_rank)
