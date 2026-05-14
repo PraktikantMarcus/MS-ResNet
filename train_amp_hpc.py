@@ -153,8 +153,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
     args.local_rank = int(os.environ.get('LOCAL_RANK', args.local_rank))
     print(args.local_rank)
+    # device_id handles clusters that restrict CUDA_VISIBLE_DEVICES per-process
+    # (each process sees only 1 GPU as device 0) as well as the shared-visibility case
+    device_id = args.local_rank % max(torch.cuda.device_count(), 1)
     torch.distributed.init_process_group(backend='nccl')
-    torch.cuda.set_device(args.local_rank)
+    torch.cuda.set_device(device_id)
 
     SEED = 445
     torch.manual_seed(SEED)
@@ -165,7 +168,7 @@ if __name__ == '__main__':
     net.cuda()
     net = nn.SyncBatchNorm.convert_sync_batchnorm(net)
     net = torch.nn.parallel.DistributedDataParallel(
-        net, device_ids=[args.local_rank])
+        net, device_ids=[device_id])
 
     num_gpus = torch.cuda.device_count()
     if torch.cuda.device_count() > 1:
@@ -204,7 +207,7 @@ if __name__ == '__main__':
     best_acc = 0.0
 
     if args.resume:
-        map_location = lambda storage, loc: storage.cuda(args.local_rank)
+        map_location = lambda storage, loc: storage.cuda(device_id)
         checkpoint = torch.load(args.resume, map_location=map_location)
         net.load_state_dict(checkpoint['model'])
         optimizer.load_state_dict(checkpoint['optimizer'])
