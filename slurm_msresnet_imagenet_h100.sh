@@ -17,14 +17,14 @@
 #SBATCH --cpus-per-task=96
 #SBATCH --mem=0                         # all available memory on the node
 #SBATCH --time=24:00:00
-#SBATCH --output=/nfsscratch/fritzsche/msresnet/logs/msresnet_%j.out
-#SBATCH --error=/nfsscratch/fritzsche/msresnet/logs/msresnet_%j.err
+#SBATCH --output=/home/fritzsche/MS-ResNet/logs/msresnet_%j.out
+#SBATCH --error=/home/fritzsche/MS-ResNet/logs/msresnet_%j.err
 
 # ── User-configurable ─────────────────────────────────────────────────────────
-PROJECT_DIR="/home/fritzsche/MS-ResNet"           # TODO: adjust to your repo path
+PROJECT_DIR="/home/fritzsche/MS-ResNet"         
 DATA_DIR="/nfsscratch/fritzsche/imagenet"
-OUTPUT_DIR="/nfsscratch/fritzsche/msresnet/output"
-LOG_DIR="/nfsscratch/fritzsche/msresnet/logs"
+OUTPUT_DIR="/nfsscratch/fritzsche/msresnet_output/imagenet"
+LOG_DIR="/home/fritzsche/MS-ResNet/logs"
 
 TARGET_EPOCHS=125      # must match conf/global_settings.py EPOCH
 NUM_GPUS=8
@@ -37,7 +37,7 @@ module purge
 module load cuda/12.3
 module load gnu12/12.3.0
 
-source /home/fritzsche/ms-resnet/bin/activate   # TODO: adjust to your venv
+source /home/fritzsche/qkformer/bin/activate   # TODO: adjust to your venv
 
 echo "Job ID:      $SLURM_JOB_ID"
 echo "Node:        $SLURMD_NODENAME"
