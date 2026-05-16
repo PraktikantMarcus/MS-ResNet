@@ -35,16 +35,16 @@ def train(epoch, args):
         scaler.update()
         n_iter = (epoch - 1) * len(ImageNet_training_loader) + batch_index + 1
         if batch_index % 10 == 9:
-            print(
-                'Training Epoch: {epoch} [{trained_samples}/{total_samples}]\tLoss: {:0.4f}\tLR: {:0.6f}'
-                .format(running_loss / 10,
-                        optimizer.param_groups[0]['lr'],
-                        epoch=epoch,
-                        trained_samples=batch_index * args.b + len(images),
-                        total_samples=len(ImageNet_training_loader.dataset)))
-            print('training time consumed: {:.2f}s'.format(time.time() -
-                                                           start))
             if args.local_rank == 0:
+                print(
+                    'Training Epoch: {epoch} [{trained_samples}/{total_samples}]\tLoss: {:0.4f}\tLR: {:0.6f}'
+                    .format(running_loss / 10,
+                            optimizer.param_groups[0]['lr'],
+                            epoch=epoch,
+                            trained_samples=batch_index * args.b + len(images),
+                            total_samples=len(ImageNet_training_loader.dataset)))
+                print('training time consumed: {:.2f}s'.format(time.time() -
+                                                               start))
                 writer.add_scalar('Train/avg_loss', running_loss / 10, n_iter)
                 writer.add_scalar('Train/avg_loss_numpic', running_loss / 10,
                                   n_iter * args.b)

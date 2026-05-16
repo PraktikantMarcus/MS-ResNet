@@ -83,7 +83,7 @@ torchrun \
     --standalone \
     --nproc_per_node="$NUM_GPUS" \
     train_amp_hpc.py \
-        -net resnet104 \
+        -net resnet104_fast \
         -b 256 \
         -lr 0.1 \
         -data_path "$DATA_DIR" \

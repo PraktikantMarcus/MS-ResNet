@@ -17,6 +17,15 @@ def get_network(args):
     elif args.net == 'resnet104':
         from models.MS_ResNet import resnet104
         net = resnet104()
+    elif args.net == 'resnet18_fast':
+        from models.MS_ResNet_fast import resnet18
+        net = resnet18()
+    elif args.net == 'resnet34_fast':
+        from models.MS_ResNet_fast import resnet34
+        net = resnet34()
+    elif args.net == 'resnet104_fast':
+        from models.MS_ResNet_fast import resnet104
+        net = resnet104()
     else:
         print('the network name you have entered is not supported yet')
         sys.exit()
