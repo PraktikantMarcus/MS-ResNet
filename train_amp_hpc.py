@@ -170,6 +170,7 @@ if __name__ == '__main__':
     net = nn.SyncBatchNorm.convert_sync_batchnorm(net)
     net = torch.nn.parallel.DistributedDataParallel(
         net, device_ids=[device_id])
+    torch._dynamo.config.optimize_ddp = False
     net = torch.compile(net)
 
     world_size = torch.distributed.get_world_size()
