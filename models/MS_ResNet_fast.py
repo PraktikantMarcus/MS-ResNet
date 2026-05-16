@@ -125,11 +125,12 @@ class Snn_Conv2d(nn.Conv2d):
         # input: [T, B, C_in, H, W]
         # Merge T and B so all timesteps go through one conv2d call,
         # then split back. Same FLOPs, far fewer CUDA kernel launches.
+        # reshape (not view) because mem_update output is non-contiguous.
         T, B = input.size(0), input.size(1)
-        x = input.view(T * B, input.size(2), input.size(3), input.size(4))
+        x = input.reshape(T * B, input.size(2), input.size(3), input.size(4))
         out = F.conv2d(x, self.weight, self.bias, self.stride,
                        self.padding, self.dilation, self.groups)
-        return out.view(T, B, self.out_channels, out.size(2), out.size(3))
+        return out.reshape(T, B, self.out_channels, out.size(2), out.size(3))
 
 
 ######################################################################################################################

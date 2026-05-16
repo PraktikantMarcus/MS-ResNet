@@ -6,8 +6,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
-from torch.cuda.amp import autocast
-import torch.cuda.amp
+from torch.amp import autocast, GradScaler
 from conf import settings
 from utils import get_network, get_training_dataloader, get_test_dataloader
 
@@ -24,7 +23,7 @@ def train(epoch, args):
             images = images.cuda(non_blocking=True)
         num_sample += images.size()[0]
         optimizer.zero_grad()
-        with autocast():
+        with autocast('cuda'):
             outputs = net(images)
             _, preds = outputs.max(1)
             correct += preds.eq(labels).sum()
@@ -201,7 +200,7 @@ if __name__ == '__main__':
                           weight_decay=1e-5)
     train_scheduler = optim.lr_scheduler.CosineAnnealingLR(
         optimizer, T_max=settings.EPOCH, eta_min=0, last_epoch=0)
-    scaler = torch.cuda.amp.GradScaler()
+    scaler = GradScaler('cuda')
 
     start_epoch = 1
     best_acc = 0.0
