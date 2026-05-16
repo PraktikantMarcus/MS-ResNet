@@ -163,14 +163,17 @@ if __name__ == '__main__':
     torch.cuda.manual_seed(SEED)
     np.random.seed(SEED)
 
+    torch.backends.cudnn.benchmark = True
+
     net = get_network(args)
     net.cuda()
     net = nn.SyncBatchNorm.convert_sync_batchnorm(net)
     net = torch.nn.parallel.DistributedDataParallel(
         net, device_ids=[device_id])
+    net = torch.compile(net)
 
     world_size = torch.distributed.get_world_size()
-    if world_size > 1:
+    if world_size > 1 and args.local_rank == 0:
         print("Let's use", world_size, "GPUs!")
 
     ImageNet_training_loader = get_training_dataloader(
@@ -179,6 +182,7 @@ if __name__ == '__main__':
         batch_size=args.b // world_size,
         shuffle=False,
         sampler=1,
+        persistent_workers=True,
     )
 
     ImageNet_test_loader = get_test_dataloader(
@@ -187,6 +191,7 @@ if __name__ == '__main__':
         batch_size=args.b // world_size,
         shuffle=False,
         sampler=1,
+        persistent_workers=True,
     )
 
     b_lr = args.lr

@@ -45,19 +45,15 @@ class mem_update(nn.Module):
         super(mem_update, self).__init__()
 
     def forward(self, x):
+        # Reads output[i-1] instead of cloning mem each step, eliminating
+        # T tensor allocations per call (515 per forward pass across all layers).
         T = x.size(0)
-        mem = torch.zeros_like(x[0])
-        spike = torch.zeros_like(x[0])
         output = torch.zeros_like(x)
-        mem_old = 0
-        for i in range(T):
-            if i >= 1:
-                mem = mem_old * decay * (1 - spike.detach()) + x[i]
-            else:
-                mem = x[i]
-            spike = act_fun(mem)
-            mem_old = mem.clone()
-            output[i] = spike
+        mem = x[0]
+        output[0] = act_fun(mem)
+        for i in range(1, T):
+            mem = mem * decay * (1 - output[i - 1].detach()) + x[i]
+            output[i] = act_fun(mem)
         return output
 
 

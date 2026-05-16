@@ -37,7 +37,8 @@ def get_training_dataloader(traindir,
                             sampler=None,
                             batch_size=16,
                             num_workers=2,
-                            shuffle=True):
+                            shuffle=True,
+                            persistent_workers=False):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
     ImageNet_training = datasets.ImageFolder(
@@ -55,13 +56,15 @@ def get_training_dataloader(traindir,
             num_workers=num_workers,
             batch_size=batch_size,
             pin_memory=True,
+            persistent_workers=persistent_workers,
             sampler=DistributedSampler(ImageNet_training))
     else:
         ImageNet_training_loader = DataLoader(ImageNet_training,
                                               shuffle=shuffle,
                                               num_workers=num_workers,
                                               batch_size=batch_size,
-                                              pin_memory=True)
+                                              pin_memory=True,
+                                              persistent_workers=persistent_workers)
 
     return ImageNet_training_loader
 
@@ -70,7 +73,8 @@ def get_test_dataloader(valdir,
                         sampler=None,
                         batch_size=16,
                         num_workers=2,
-                        shuffle=False):
+                        shuffle=False,
+                        persistent_workers=False):
     normalize = transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                      std=[0.229, 0.224, 0.225])
     ImageNet_test = datasets.ImageFolder(
@@ -88,11 +92,13 @@ def get_test_dataloader(valdir,
             num_workers=num_workers,
             batch_size=batch_size,
             pin_memory=True,
+            persistent_workers=persistent_workers,
             sampler=DistributedSampler(ImageNet_test))
     else:
         ImageNet_test_loader = DataLoader(ImageNet_test,
                                           shuffle=shuffle,
                                           num_workers=num_workers,
-                                          batch_size=batch_size)
+                                          batch_size=batch_size,
+                                          persistent_workers=persistent_workers)
 
     return ImageNet_test_loader
