@@ -170,14 +170,14 @@ if __name__ == '__main__':
     net = torch.nn.parallel.DistributedDataParallel(
         net, device_ids=[device_id])
 
-    num_gpus = torch.cuda.device_count()
-    if torch.cuda.device_count() > 1:
-        print("Let's use", torch.cuda.device_count(), "GPUs!")
+    world_size = torch.distributed.get_world_size()
+    if world_size > 1:
+        print("Let's use", world_size, "GPUs!")
 
     ImageNet_training_loader = get_training_dataloader(
         traindir=os.path.join(args.data_path, 'train'),
         num_workers=args.workers,
-        batch_size=args.b // num_gpus,
+        batch_size=args.b // world_size,
         shuffle=False,
         sampler=1,
     )
@@ -185,7 +185,7 @@ if __name__ == '__main__':
     ImageNet_test_loader = get_test_dataloader(
         valdir=os.path.join(args.data_path, 'val'),
         num_workers=args.workers,
-        batch_size=args.b // num_gpus,
+        batch_size=args.b // world_size,
         shuffle=False,
         sampler=1,
     )
@@ -224,9 +224,10 @@ if __name__ == '__main__':
             log_dir=os.path.join(args.output_dir, 'tensorboard'))
 
     for epoch in range(start_epoch, settings.EPOCH + 1):
+        ImageNet_training_loader.sampler.set_epoch(epoch)
         train(epoch, args)
         train_scheduler.step()
-        acc = eval_training(epoch, args)
+        acc = eval_training(epoch, args).item()
 
         if acc > best_acc:
             best_acc = acc
