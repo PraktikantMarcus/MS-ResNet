@@ -242,7 +242,7 @@ if __name__ == '__main__':
                     os.path.join(args.output_dir, 'best_model.pth'))
 
         # Save full training state every 5 epochs for preemption recovery
-        if args.local_rank == 0 and epoch % 5 == 0:
+        if args.local_rank == 0:
             torch.save({
                 'model': net.state_dict(),
                 'optimizer': optimizer.state_dict(),
