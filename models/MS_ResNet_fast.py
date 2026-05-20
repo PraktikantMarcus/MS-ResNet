@@ -309,3 +309,49 @@ def resnet18():
 
 def resnet34():
     return ResNet_origin_18(BasicBlock_18, [3, 4, 6, 3])
+
+
+class ResNet_CIFAR18(nn.Module):
+    """ResNet-18 adapted for CIFAR (32×32): 3×3 stem at stride=1, no MaxPool,
+    first stage at stride=1 so spatial dims reach 4×4 before global pool."""
+
+    def __init__(self, block, num_block, num_classes=10):
+        super().__init__()
+        k = 1
+        self.in_channels = 64 * k
+        self.conv1 = nn.Sequential(
+            Snn_Conv2d(3, 64 * k, kernel_size=3, padding=1, bias=False),
+            batch_norm_2d(64 * k),
+        )
+        self.mem_update = mem_update()
+        self.conv2_x = self._make_layer(block, 64 * k,  num_block[0], 1)
+        self.conv3_x = self._make_layer(block, 128 * k, num_block[1], 2)
+        self.conv4_x = self._make_layer(block, 256 * k, num_block[2], 2)
+        self.conv5_x = self._make_layer(block, 512 * k, num_block[3], 2)
+        self.fc = nn.Linear(512 * block.expansion * k, num_classes)
+
+    def _make_layer(self, block, out_channels, num_blocks, stride):
+        strides = [stride] + [1] * (num_blocks - 1)
+        layers = []
+        for stride in strides:
+            layers.append(block(self.in_channels, out_channels, stride))
+            self.in_channels = out_channels * block.expansion
+        return nn.Sequential(*layers)
+
+    def forward(self, x):
+        input = x.unsqueeze(0).expand(time_window, -1, -1, -1, -1).contiguous()
+        output = self.conv1(input)
+        output = self.conv2_x(output)
+        output = self.conv3_x(output)
+        output = self.conv4_x(output)
+        output = self.conv5_x(output)
+        output = self.mem_update(output)
+        output = F.adaptive_avg_pool3d(output, (None, 1, 1))
+        output = output.view(output.size()[0], output.size()[1], -1)
+        output = output.sum(dim=0) / output.size()[0]
+        output = self.fc(output)
+        return output
+
+
+def resnet18_cifar10():
+    return ResNet_CIFAR18(BasicBlock_18, [2, 2, 2, 2], num_classes=10)

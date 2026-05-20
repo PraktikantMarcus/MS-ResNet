@@ -26,6 +26,9 @@ def get_network(args):
     elif args.net == 'resnet104_fast':
         from models.MS_ResNet_fast import resnet104
         net = resnet104()
+    elif args.net == 'resnet18_cifar10':
+        from models.MS_ResNet_fast import resnet18_cifar10
+        net = resnet18_cifar10()
     else:
         print('the network name you have entered is not supported yet')
         sys.exit()
@@ -102,3 +105,47 @@ def get_test_dataloader(valdir,
                                           persistent_workers=persistent_workers)
 
     return ImageNet_test_loader
+
+
+def get_training_dataloader_cifar10(data_path,
+                                    batch_size=128,
+                                    num_workers=4,
+                                    shuffle=True):
+    normalize = transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
+                                     std=[0.2023, 0.1994, 0.2010])
+    dataset = datasets.CIFAR10(
+        root=data_path,
+        train=True,
+        download=False,
+        transform=transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            normalize,
+        ]))
+    return DataLoader(dataset,
+                      batch_size=batch_size,
+                      shuffle=shuffle,
+                      num_workers=num_workers,
+                      pin_memory=True)
+
+
+def get_test_dataloader_cifar10(data_path,
+                                batch_size=128,
+                                num_workers=4,
+                                shuffle=False):
+    normalize = transforms.Normalize(mean=[0.4914, 0.4822, 0.4465],
+                                     std=[0.2023, 0.1994, 0.2010])
+    dataset = datasets.CIFAR10(
+        root=data_path,
+        train=False,
+        download=False,
+        transform=transforms.Compose([
+            transforms.ToTensor(),
+            normalize,
+        ]))
+    return DataLoader(dataset,
+                      batch_size=batch_size,
+                      shuffle=shuffle,
+                      num_workers=num_workers,
+                      pin_memory=True)
