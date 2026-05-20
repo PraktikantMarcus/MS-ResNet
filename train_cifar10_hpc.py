@@ -112,7 +112,7 @@ if __name__ == '__main__':
                           momentum=0.9,
                           weight_decay=5e-4)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=EPOCHS, eta_min=0, last_epoch=0)
+        optimizer, T_max=EPOCHS, eta_min=0)
     scaler = GradScaler('cuda')
 
     start_epoch = 1
