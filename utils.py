@@ -26,9 +26,9 @@ def get_network(args):
     elif args.net == 'resnet104_fast':
         from models.MS_ResNet_fast import resnet104
         net = resnet104()
-    elif args.net == 'resnet18_cifar10':
-        from models.MS_ResNet_fast import resnet18_cifar10
-        net = resnet18_cifar10()
+    elif args.net == 'resnet110_cifar10':
+        from models.MS_ResNet_fast import resnet110_cifar10
+        net = resnet110_cifar10()
     else:
         print('the network name you have entered is not supported yet')
         sys.exit()

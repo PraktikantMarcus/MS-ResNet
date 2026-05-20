@@ -57,7 +57,7 @@ fi
 cd "$PROJECT_DIR"
 
 python train_cifar10_hpc.py \
-    -net resnet18_cifar10 \
+    -net resnet110_cifar10 \
     -b 128 \
     -lr 0.1 \
     -data_path "$DATA_DIR" \

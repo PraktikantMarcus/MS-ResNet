@@ -71,7 +71,7 @@ def eval_training(epoch):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('-net', type=str, default='resnet18_cifar10')
+    parser.add_argument('-net', type=str, default='resnet110_cifar10')
     parser.add_argument('-b', type=int, default=128,
                         help='batch size')
     parser.add_argument('-lr', type=float, default=0.1,
