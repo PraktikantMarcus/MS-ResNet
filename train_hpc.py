@@ -48,6 +48,7 @@ DATASET_CONFIGS = {
     'cifar10dvs': dict(
         model='resnet110_cifar',
         T=10, in_channels=2, num_classes=10, dvs=True,
+        spatial=48,   # resize from native 128×128 to 48×48 before the network
         epochs=100, batch_size=128, lr=1e-3,
         optimizer='adamw', weight_decay=0.06,
         distributed=False, workers=4,
@@ -56,6 +57,7 @@ DATASET_CONFIGS = {
     'dvs128': dict(
         model='resnet110_dvs128',
         T=16, in_channels=2, num_classes=11, dvs=True,
+        spatial=None,  # keep native 128×128; stride-2 stem handles downsampling (ADR 0007)
         epochs=100, batch_size=16, lr=1e-3,
         optimizer='adamw', weight_decay=0.06,
         distributed=False, workers=4,
@@ -161,22 +163,40 @@ def build_dataloaders(dataset_name, cfg, data_path):
         origin_set = CIFAR10DVS(root=data_path, data_type='frame',
                                 frames_number=T, split_by='number')
         train_set, val_set = _split_to_train_test(origin_set, num_classes=10)
+        spatial = cfg.get('spatial')    # 48 — resize from native 128×128
         flip = transforms.RandomHorizontalFlip(p=0.5)
         snn_aug = SNNAugmentWide()
 
-        def dvs_collate(batch):
+        def dvs_collate_train(batch):
+            imgs, labels = zip(*batch)
+            # SpikingJelly returns numpy (T, C, 128, 128); convert and resize
+            imgs = torch.stack([torch.tensor(img, dtype=torch.float32)
+                                for img in imgs])          # (B, T, C, 128, 128)
+            B_, T_, C_, H_, W_ = imgs.shape
+            imgs = torch.nn.functional.interpolate(
+                imgs.view(B_ * T_, C_, H_, W_),
+                size=(spatial, spatial), mode='bilinear', align_corners=False)
+            imgs = imgs.view(B_, T_, C_, spatial, spatial)
+            imgs = torch.stack([snn_aug(flip(imgs[i])) for i in range(B_)])
+            return imgs, torch.tensor(labels)
+
+        def dvs_collate_val(batch):
             imgs, labels = zip(*batch)
             imgs = torch.stack([torch.tensor(img, dtype=torch.float32)
                                 for img in imgs])
-            # imgs: (B, T, C, H, W) — apply per-sample augmentation
-            imgs = torch.stack([snn_aug(flip(imgs[i])) for i in range(len(imgs))])
+            B_, T_, C_, H_, W_ = imgs.shape
+            imgs = torch.nn.functional.interpolate(
+                imgs.view(B_ * T_, C_, H_, W_),
+                size=(spatial, spatial), mode='bilinear', align_corners=False)
+            imgs = imgs.view(B_, T_, C_, spatial, spatial)
             return imgs, torch.tensor(labels)
 
         train_loader = DataLoader(train_set, batch_size=batch, shuffle=True,
                                   num_workers=workers, pin_memory=True,
-                                  collate_fn=dvs_collate)
+                                  collate_fn=dvs_collate_train)
         val_loader   = DataLoader(val_set,   batch_size=batch, shuffle=False,
-                                  num_workers=workers, pin_memory=True)
+                                  num_workers=workers, pin_memory=True,
+                                  collate_fn=dvs_collate_val)
         return train_loader, val_loader, None
 
     if dataset_name == 'dvs128':
