@@ -5,9 +5,19 @@ import torchvision.datasets as datasets
 from torch.utils.data.distributed import DistributedSampler
 
 
-def get_network(args):
-    """ return given network
+def get_network(args, cfg=None):
+    """Return the requested network, forwarding dataset config parameters.
+
+    args.net selects the architecture family.  cfg is an optional dataset
+    config dict (from DATASET_CONFIGS in train_hpc.py) that supplies
+    num_classes, in_channels, T, and dvs where applicable.
     """
+    cfg = cfg or {}
+    num_classes = cfg.get('num_classes', 1000)
+    in_channels = cfg.get('in_channels', 3)
+    T           = cfg.get('T', 5)
+    dvs         = cfg.get('dvs', False)
+
     if args.net == 'resnet18':
         from models.MS_ResNet import resnet18
         net = resnet18()
@@ -19,16 +29,19 @@ def get_network(args):
         net = resnet104()
     elif args.net == 'resnet18_fast':
         from models.MS_ResNet_fast import resnet18
-        net = resnet18()
+        net = resnet18(num_classes=num_classes, T=T)
     elif args.net == 'resnet34_fast':
         from models.MS_ResNet_fast import resnet34
-        net = resnet34()
+        net = resnet34(num_classes=num_classes, T=T)
     elif args.net == 'resnet104_fast':
         from models.MS_ResNet_fast import resnet104
-        net = resnet104()
-    elif args.net == 'resnet110_cifar10':
-        from models.MS_ResNet_fast import resnet110_cifar10
-        net = resnet110_cifar10()
+        net = resnet104(num_classes=num_classes, T=T)
+    elif args.net == 'resnet110_cifar':
+        from models.MS_ResNet_fast import resnet110_cifar
+        net = resnet110_cifar(num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs)
+    elif args.net == 'resnet110_dvs128':
+        from models.MS_ResNet_fast import resnet110_dvs128
+        net = resnet110_dvs128(num_classes=num_classes, in_channels=in_channels, T=T)
     else:
         print('the network name you have entered is not supported yet')
         sys.exit()
