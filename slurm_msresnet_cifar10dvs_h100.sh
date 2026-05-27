@@ -8,12 +8,11 @@
 
 #SBATCH --job-name=msresnet_cifar10dvs
 #SBATCH --partition=normal
-#SBATCH --exclude=multigpu
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=32G
+#SBATCH --mem=0G
 #SBATCH --time=0-12:00:00
 #SBATCH --output=/home/fritzsche/MS-ResNet/logs/msresnet_cifar10dvs_%j.out
 #SBATCH --error=/home/fritzsche/MS-ResNet/logs/msresnet_cifar10dvs_%j.err
