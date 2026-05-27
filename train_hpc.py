@@ -46,7 +46,7 @@ DATASET_CONFIGS = {
         loss='ce',
     ),
     'cifar10dvs': dict(
-        model='resnet110_cifar',
+        model='resnet20_cifar',
         T=10, in_channels=2, num_classes=10, dvs=True,
         spatial=48,   # resize from native 128×128 to 48×48 before the network
         epochs=100, batch_size=128, lr=1e-3,
@@ -55,7 +55,7 @@ DATASET_CONFIGS = {
         loss='ce',
     ),
     'dvs128': dict(
-        model='resnet110_dvs128',
+        model='resnet20_dvs128',
         T=16, in_channels=2, num_classes=11, dvs=True,
         spatial=None,  # keep native 128×128; stride-2 stem handles downsampling (ADR 0007)
         epochs=100, batch_size=16, lr=1e-3,

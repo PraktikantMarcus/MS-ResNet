@@ -407,11 +407,22 @@ class ResNet_DVS128(nn.Module):
         return output
 
 
+def resnet20_cifar(num_classes=10, in_channels=3, T=5, dvs=False):
+    """MS-ResNet-20 for small images: n=3, 6×3+2=20 weight layers.
+    Matches the depth used by Hu et al. (2024) for CIFAR-10-DVS."""
+    return ResNet_CIFAR(n=3, num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs)
+
+
 def resnet110_cifar(num_classes=10, in_channels=3, T=5, dvs=False):
     """MS-ResNet-110 for small images: n=18, 6×18+2=110 weight layers."""
     return ResNet_CIFAR(n=18, num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs)
 
 
+def resnet20_dvs128(num_classes=11, in_channels=2, T=16):
+    """MS-ResNet-20 for DVS128 Gesture: stride-2 stem + 3 residual stages, n=3."""
+    return ResNet_DVS128(n=3, num_classes=num_classes, in_channels=in_channels, T=T)
+
+
 def resnet110_dvs128(num_classes=11, in_channels=2, T=16):
-    """MS-ResNet-110 for DVS128 Gesture: stride-2 stem + 3 residual stages."""
+    """MS-ResNet-110 for DVS128 Gesture: stride-2 stem + 3 residual stages, n=18."""
     return ResNet_DVS128(n=18, num_classes=num_classes, in_channels=in_channels, T=T)
