@@ -91,12 +91,15 @@ class CrossEntropyLabelSmooth(nn.Module):
 # Data loaders
 # ---------------------------------------------------------------------------
 def _split_to_train_test(origin_dataset, num_classes, train_ratio=0.9):
-    """Front-ratio split per class (deterministic given numpy seed)."""
+    """Random 90/10 split per class, seeded for reproducibility."""
     label_idx = [[] for _ in range(num_classes)]
     for i, (_, y) in enumerate(origin_dataset):
         label_idx[y].append(i)
+    rng = np.random.default_rng(SEED)
     train_idx, test_idx = [], []
     for indices in label_idx:
+        indices = list(indices)
+        rng.shuffle(indices)
         pos = math.ceil(len(indices) * train_ratio)
         train_idx.extend(indices[:pos])
         test_idx.extend(indices[pos:])
@@ -167,14 +170,6 @@ def build_dataloaders(dataset_name, cfg, data_path):
         flip = transforms.RandomHorizontalFlip(p=0.5)
         snn_aug = SNNAugmentWide()
 
-        def _random_crop(imgs, size=128, padding=8):
-            # imgs: (T, C, H, W) — pad then take a random crop, same crop all T
-            imgs = torch.nn.functional.pad(imgs, (padding,) * 4)
-            _, _, h, w = imgs.shape
-            i = torch.randint(0, h - size + 1, (1,)).item()
-            j = torch.randint(0, w - size + 1, (1,)).item()
-            return imgs[:, :, i:i + size, j:j + size]
-
         def dvs_collate_train(batch):
             imgs, labels = zip(*batch)
             imgs = torch.stack([torch.tensor(img, dtype=torch.float32)
@@ -185,7 +180,7 @@ def build_dataloaders(dataset_name, cfg, data_path):
                     imgs.view(B_ * T_, C_, H_, W_),
                     size=(spatial, spatial), mode='bilinear', align_corners=False)
                 imgs = imgs.view(B_, T_, C_, spatial, spatial)
-            imgs = torch.stack([snn_aug(flip(_random_crop(imgs[i]))) for i in range(len(imgs))])
+            imgs = torch.stack([snn_aug(flip(imgs[i])) for i in range(len(imgs))])
             return imgs, torch.tensor(labels)
 
         def dvs_collate_val(batch):
