@@ -48,7 +48,7 @@ DATASET_CONFIGS = {
     'cifar10dvs': dict(
         model='resnet20_cifar',
         T=10, in_channels=2, num_classes=10, dvs=True,
-        spatial=48,   # resize from native 128×128 to 48×48 before the network
+        spatial=None,  # native 128×128; stride-2 in conv1 handles downsampling (Fang et al. 2021)
         epochs=100, batch_size=128, lr=1e-3,
         optimizer='adamw', weight_decay=0.06,
         distributed=False, workers=4,
@@ -169,26 +169,27 @@ def build_dataloaders(dataset_name, cfg, data_path):
 
         def dvs_collate_train(batch):
             imgs, labels = zip(*batch)
-            # SpikingJelly returns numpy (T, C, 128, 128); convert and resize
             imgs = torch.stack([torch.tensor(img, dtype=torch.float32)
-                                for img in imgs])          # (B, T, C, 128, 128)
-            B_, T_, C_, H_, W_ = imgs.shape
-            imgs = torch.nn.functional.interpolate(
-                imgs.view(B_ * T_, C_, H_, W_),
-                size=(spatial, spatial), mode='bilinear', align_corners=False)
-            imgs = imgs.view(B_, T_, C_, spatial, spatial)
-            imgs = torch.stack([snn_aug(flip(imgs[i])) for i in range(B_)])
+                                for img in imgs])          # (B, T, C, H, W)
+            if spatial is not None:
+                B_, T_, C_, H_, W_ = imgs.shape
+                imgs = torch.nn.functional.interpolate(
+                    imgs.view(B_ * T_, C_, H_, W_),
+                    size=(spatial, spatial), mode='bilinear', align_corners=False)
+                imgs = imgs.view(B_, T_, C_, spatial, spatial)
+            imgs = torch.stack([snn_aug(flip(imgs[i])) for i in range(len(imgs))])
             return imgs, torch.tensor(labels)
 
         def dvs_collate_val(batch):
             imgs, labels = zip(*batch)
             imgs = torch.stack([torch.tensor(img, dtype=torch.float32)
                                 for img in imgs])
-            B_, T_, C_, H_, W_ = imgs.shape
-            imgs = torch.nn.functional.interpolate(
-                imgs.view(B_ * T_, C_, H_, W_),
-                size=(spatial, spatial), mode='bilinear', align_corners=False)
-            imgs = imgs.view(B_, T_, C_, spatial, spatial)
+            if spatial is not None:
+                B_, T_, C_, H_, W_ = imgs.shape
+                imgs = torch.nn.functional.interpolate(
+                    imgs.view(B_ * T_, C_, H_, W_),
+                    size=(spatial, spatial), mode='bilinear', align_corners=False)
+                imgs = imgs.view(B_, T_, C_, spatial, spatial)
             return imgs, torch.tensor(labels)
 
         train_loader = DataLoader(train_set, batch_size=batch, shuffle=True,

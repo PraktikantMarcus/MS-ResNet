@@ -325,8 +325,12 @@ class ResNet_CIFAR(nn.Module):
         self.T = T
         self.dvs = dvs
         self.in_channels = 16
+        # DVS inputs arrive at native 128×128; stride-2 reduces to 64×64 before
+        # the residual stages, matching the paper's "additional downsampling at
+        # the first CONV stage" (Hu et al. 2024, following Fang et al. 2021).
+        conv1_stride = 2 if dvs else 1
         self.conv1 = nn.Sequential(
-            Snn_Conv2d(in_channels, 16, kernel_size=3, padding=1, bias=False),
+            Snn_Conv2d(in_channels, 16, kernel_size=3, stride=conv1_stride, padding=1, bias=False),
             batch_norm_2d(16),
         )
         self.mem_update = mem_update()
