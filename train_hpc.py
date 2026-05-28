@@ -163,9 +163,17 @@ def build_dataloaders(dataset_name, cfg, data_path):
         origin_set = CIFAR10DVS(root=data_path, data_type='frame',
                                 frames_number=T, split_by='number')
         train_set, val_set = _split_to_train_test(origin_set, num_classes=10)
-        spatial = cfg.get('spatial')    # 48 — resize from native 128×128
+        spatial = cfg.get('spatial')
         flip = transforms.RandomHorizontalFlip(p=0.5)
         snn_aug = SNNAugmentWide()
+
+        def _random_crop(imgs, size=128, padding=8):
+            # imgs: (T, C, H, W) — pad then take a random crop, same crop all T
+            imgs = torch.nn.functional.pad(imgs, (padding,) * 4)
+            _, _, h, w = imgs.shape
+            i = torch.randint(0, h - size + 1, (1,)).item()
+            j = torch.randint(0, w - size + 1, (1,)).item()
+            return imgs[:, :, i:i + size, j:j + size]
 
         def dvs_collate_train(batch):
             imgs, labels = zip(*batch)
@@ -177,7 +185,7 @@ def build_dataloaders(dataset_name, cfg, data_path):
                     imgs.view(B_ * T_, C_, H_, W_),
                     size=(spatial, spatial), mode='bilinear', align_corners=False)
                 imgs = imgs.view(B_, T_, C_, spatial, spatial)
-            imgs = torch.stack([snn_aug(flip(imgs[i])) for i in range(len(imgs))])
+            imgs = torch.stack([snn_aug(flip(_random_crop(imgs[i]))) for i in range(len(imgs))])
             return imgs, torch.tensor(labels)
 
         def dvs_collate_val(batch):

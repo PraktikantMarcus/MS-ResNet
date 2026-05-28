@@ -33,8 +33,12 @@ Model names encode architecture depth and structural family, not dataset. The cl
 | Name | Architecture family | Typical use |
 |---|---|---|
 | `resnet18`, `resnet34`, `resnet104` | ImageNet stem (7×7 stride-2 + maxpool, 4 stages) | ImageNet |
-| `resnet110_cifar` | CIFAR stem (3×3 no-stride, 3 stages) | CIFAR-10, CIFAR-100, CIFAR-10-DVS |
-| `resnet110_dvs128` | CIFAR stem + one stride-2 spiking conv (128→64) | DVS128 Gesture (128×128 input) |
+| `resnet20_cifar` | CIFAR stem (3×3, stride-1 static / stride-2 DVS, 3 stages, n=3) | CIFAR-10-DVS (paper's depth) |
+| `resnet110_cifar` | CIFAR stem (3×3, stride-1 static / stride-2 DVS, 3 stages, n=18) | CIFAR-10, CIFAR-100 |
+| `resnet20_dvs128` | CIFAR stem + dedicated stride-2 spiking conv stem (128→64), n=3 | DVS128 Gesture |
+| `resnet110_dvs128` | CIFAR stem + dedicated stride-2 spiking conv stem (128→64), n=18 | DVS128 Gesture (ablation) |
+
+When `dvs=True`, `ResNet_CIFAR` sets `conv1` stride to 2, reducing native 128×128 input to 64×64 before the first residual stage — matching Hu et al. (2024) and Fang et al. (arXiv:2007.05785). Static datasets keep stride-1. See ADR-0009.
 
 All variants accept `in_channels` and `num_classes` as constructor arguments.
 
@@ -45,13 +49,14 @@ The config dict captures all values that differ between datasets:
 
 | Key | imagenet | cifar10 | cifar100 | cifar10dvs | dvs128 |
 |---|---|---|---|---|---|
-| `model` | `resnet104_fast` | `resnet110_cifar` | `resnet110_cifar` | `resnet110_cifar` | `resnet110_dvs128` |
+| `model` | `resnet104_fast` | `resnet110_cifar` | `resnet110_cifar` | `resnet20_cifar` | `resnet20_dvs128` |
 | `T` | 5 | 5 | 5 | 10 | 16 |
+| `spatial` | — | — | — | `None` (native 128×128, stride-2 in conv1) | `None` (native 128×128, stride-2 stem) |
 | `in_channels` | 3 | 3 | 3 | 2 | 2 |
 | `num_classes` | 1000 | 10 | 100 | 10 | 11 |
 | `epochs` | 125 | 200 | 200 | 100 | 100 |
 | `optimizer` | `sgd` | `sgd` | `sgd` | `adamw` | `adamw` |
-| `batch_size` | 256 | 128 | 128 | TBD | TBD |
+| `batch_size` | 256 | 128 | 128 | 128 | 16 |
 | `distributed` | True | False | False | False | False |
 
 T differs between neuromorphic datasets because CIFAR-10-DVS has short, simple temporal structure (slow camera rotation of static images) while DVS128 Gesture has richer, longer temporal dynamics (full hand gesture trajectories). T=10 and T=16 are the respective community standards.
