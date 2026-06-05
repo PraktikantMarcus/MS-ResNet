@@ -108,21 +108,31 @@ class Snn_Conv2d(nn.Conv2d):
                  groups=1,
                  bias=True,
                  padding_mode='zeros',
-                 marker='b'):
+                 marker='b',
+                 sequential=False):
         super(Snn_Conv2d,
               self).__init__(in_channels, out_channels, kernel_size, stride,
                              padding, dilation, groups, bias, padding_mode)
         self.marker = marker
+        self.sequential = sequential
 
     def forward(self, input):
         # input: [T, B, C_in, H, W]
-        # Merge T and B so all timesteps go through one conv2d call,
-        # then split back. Same FLOPs, far fewer CUDA kernel launches.
         T, B = input.size(0), input.size(1)
-        x = input.reshape(T * B, input.size(2), input.size(3), input.size(4))
-        out = F.conv2d(x, self.weight, self.bias, self.stride,
-                       self.padding, self.dilation, self.groups)
-        return out.reshape(T, B, self.out_channels, out.size(2), out.size(3))
+        if self.sequential:
+            # Process each timestep independently — avoids T×B memory peak,
+            # enabling large batch sizes at high spatial resolution.
+            return torch.stack([
+                F.conv2d(input[i], self.weight, self.bias, self.stride,
+                         self.padding, self.dilation, self.groups)
+                for i in range(T)
+            ])
+        else:
+            # Merge T and B — one kernel launch per layer instead of T.
+            x = input.reshape(T * B, input.size(2), input.size(3), input.size(4))
+            out = F.conv2d(x, self.weight, self.bias, self.stride,
+                           self.padding, self.dilation, self.groups)
+            return out.reshape(T, B, self.out_channels, out.size(2), out.size(3))
 
 
 ######################################################################################################################
@@ -218,34 +228,25 @@ def resnet104(num_classes=1000, T=5):
 class BasicBlock_18(nn.Module):
     expansion = 1
 
-    def __init__(self, in_channels, out_channels, stride=1):
+    def __init__(self, in_channels, out_channels, stride=1, sequential=False):
         super().__init__()
         self.residual_function = nn.Sequential(
             mem_update(),
-            Snn_Conv2d(in_channels,
-                       out_channels,
-                       kernel_size=3,
-                       stride=stride,
-                       padding=1,
-                       bias=False),
+            Snn_Conv2d(in_channels, out_channels, kernel_size=3, stride=stride,
+                       padding=1, bias=False, sequential=sequential),
             batch_norm_2d(out_channels),
             mem_update(),
-            Snn_Conv2d(out_channels,
-                       out_channels * BasicBlock_18.expansion,
-                       kernel_size=3,
-                       padding=1,
-                       bias=False),
+            Snn_Conv2d(out_channels, out_channels * BasicBlock_18.expansion,
+                       kernel_size=3, padding=1, bias=False, sequential=sequential),
             batch_norm_2d1(out_channels * BasicBlock_18.expansion),
         )
         self.shortcut = nn.Sequential()
 
         if stride != 1 or in_channels != BasicBlock_18.expansion * out_channels:
             self.shortcut = nn.Sequential(
-                Snn_Conv2d(in_channels,
-                           out_channels * BasicBlock_18.expansion,
-                           kernel_size=1,
-                           stride=stride,
-                           bias=False),
+                Snn_Conv2d(in_channels, out_channels * BasicBlock_18.expansion,
+                           kernel_size=1, stride=stride, bias=False,
+                           sequential=sequential),
                 batch_norm_2d(out_channels * BasicBlock_18.expansion),
             )
 
@@ -320,7 +321,7 @@ class ResNet_CIFAR(nn.Module):
     and permutes to (T, B, C, H, W) before processing.
     """
 
-    def __init__(self, n, num_classes=10, in_channels=3, T=5, dvs=False, conv1_stride=None):
+    def __init__(self, n, num_classes=10, in_channels=3, T=5, dvs=False, conv1_stride=None, sequential=False):
         super().__init__()
         self.T = T
         self.dvs = dvs
@@ -331,20 +332,21 @@ class ResNet_CIFAR(nn.Module):
         if conv1_stride is None:
             conv1_stride = 2 if dvs else 1
         self.conv1 = nn.Sequential(
-            Snn_Conv2d(in_channels, 16, kernel_size=3, stride=conv1_stride, padding=1, bias=False),
+            Snn_Conv2d(in_channels, 16, kernel_size=3, stride=conv1_stride, padding=1,
+                       bias=False, sequential=sequential),
             batch_norm_2d(16),
         )
         self.mem_update = mem_update()
-        self.stage1 = self._make_layer(BasicBlock_18, 16, n, stride=1)
-        self.stage2 = self._make_layer(BasicBlock_18, 32, n, stride=2)
-        self.stage3 = self._make_layer(BasicBlock_18, 64, n, stride=2)
+        self.stage1 = self._make_layer(BasicBlock_18, 16, n, stride=1, sequential=sequential)
+        self.stage2 = self._make_layer(BasicBlock_18, 32, n, stride=2, sequential=sequential)
+        self.stage3 = self._make_layer(BasicBlock_18, 64, n, stride=2, sequential=sequential)
         self.fc = nn.Linear(64 * BasicBlock_18.expansion, num_classes)
 
-    def _make_layer(self, block, out_channels, num_blocks, stride):
+    def _make_layer(self, block, out_channels, num_blocks, stride, sequential=False):
         strides = [stride] + [1] * (num_blocks - 1)
         layers = []
         for s in strides:
-            layers.append(block(self.in_channels, out_channels, s))
+            layers.append(block(self.in_channels, out_channels, s, sequential=sequential))
             self.in_channels = out_channels * block.expansion
         return nn.Sequential(*layers)
 
@@ -366,40 +368,44 @@ class ResNet_CIFAR(nn.Module):
         return output
 
 
-def resnet20_cifar(num_classes=10, in_channels=3, T=5, dvs=False):
+def resnet20_cifar(num_classes=10, in_channels=3, T=5, dvs=False, sequential=False):
     """MS-ResNet-20 for small images: n=3, 6×3+2=20 weight layers.
     Matches the depth used by Hu et al. (2024) for CIFAR-10-DVS."""
-    return ResNet_CIFAR(n=3, num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs)
+    return ResNet_CIFAR(n=3, num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs,
+                        sequential=sequential)
 
 
-def resnet20_cifar_fullres(num_classes=10, in_channels=3, T=5):
+def resnet20_cifar_fullres(num_classes=10, in_channels=3, T=5, sequential=False):
     """MS-ResNet-20 for DVS at full spatial resolution (no conv1 downsampling).
     Stage1 runs at 128×128; stage2 at 64×64; stage3 at 32×32. See ADR-0010."""
     return ResNet_CIFAR(n=3, num_classes=num_classes, in_channels=in_channels,
-                        T=T, dvs=True, conv1_stride=1)
+                        T=T, dvs=True, conv1_stride=1, sequential=sequential)
 
 
-def resnet110_cifar_fullres(num_classes=10, in_channels=3, T=5):
+def resnet110_cifar_fullres(num_classes=10, in_channels=3, T=5, sequential=False):
     """MS-ResNet-110 for DVS at full spatial resolution. See ADR-0010."""
     return ResNet_CIFAR(n=18, num_classes=num_classes, in_channels=in_channels,
-                        T=T, dvs=True, conv1_stride=1)
+                        T=T, dvs=True, conv1_stride=1, sequential=sequential)
 
 
-def resnet110_cifar(num_classes=10, in_channels=3, T=5, dvs=False):
+def resnet110_cifar(num_classes=10, in_channels=3, T=5, dvs=False, sequential=False):
     """MS-ResNet-110 for small images: n=18, 6×18+2=110 weight layers."""
-    return ResNet_CIFAR(n=18, num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs)
+    return ResNet_CIFAR(n=18, num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs,
+                        sequential=sequential)
 
 
-def resnet20_dvs128(num_classes=11, in_channels=2, T=16):
+def resnet20_dvs128(num_classes=11, in_channels=2, T=16, sequential=False):
     """MS-ResNet-20 for DVS128 Gesture.
 
     Delegates to ResNet_CIFAR(dvs=True, n=3): the stride-2 conv1 in ResNet_CIFAR
     provides the same 128→64 downsampling as the former dedicated ResNet_DVS128
     class. See ADR-0007 and ADR-0009.
     """
-    return ResNet_CIFAR(n=3, num_classes=num_classes, in_channels=in_channels, T=T, dvs=True)
+    return ResNet_CIFAR(n=3, num_classes=num_classes, in_channels=in_channels, T=T, dvs=True,
+                        sequential=sequential)
 
 
-def resnet110_dvs128(num_classes=11, in_channels=2, T=16):
+def resnet110_dvs128(num_classes=11, in_channels=2, T=16, sequential=False):
     """MS-ResNet-110 for DVS128 Gesture. See resnet20_dvs128 for rationale."""
-    return ResNet_CIFAR(n=18, num_classes=num_classes, in_channels=in_channels, T=T, dvs=True)
+    return ResNet_CIFAR(n=18, num_classes=num_classes, in_channels=in_channels, T=T, dvs=True,
+                        sequential=sequential)

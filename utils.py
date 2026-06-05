@@ -17,6 +17,7 @@ def get_network(args, cfg=None):
     in_channels = cfg.get('in_channels', 3)
     T           = cfg.get('T', 5)
     dvs         = cfg.get('dvs', False)
+    sequential  = cfg.get('sequential', False)
 
     if args.net == 'resnet18':
         from models.MS_ResNet import resnet18
@@ -38,22 +39,28 @@ def get_network(args, cfg=None):
         net = resnet104(num_classes=num_classes, T=T)
     elif args.net == 'resnet20_cifar':
         from models.MS_ResNet_fast import resnet20_cifar
-        net = resnet20_cifar(num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs)
+        net = resnet20_cifar(num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs,
+                             sequential=sequential)
     elif args.net == 'resnet110_cifar':
         from models.MS_ResNet_fast import resnet110_cifar
-        net = resnet110_cifar(num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs)
+        net = resnet110_cifar(num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs,
+                              sequential=sequential)
     elif args.net == 'resnet20_cifar_fullres':
         from models.MS_ResNet_fast import resnet20_cifar_fullres
-        net = resnet20_cifar_fullres(num_classes=num_classes, in_channels=in_channels, T=T)
+        net = resnet20_cifar_fullres(num_classes=num_classes, in_channels=in_channels, T=T,
+                                     sequential=sequential)
     elif args.net == 'resnet110_cifar_fullres':
         from models.MS_ResNet_fast import resnet110_cifar_fullres
-        net = resnet110_cifar_fullres(num_classes=num_classes, in_channels=in_channels, T=T)
+        net = resnet110_cifar_fullres(num_classes=num_classes, in_channels=in_channels, T=T,
+                                      sequential=sequential)
     elif args.net == 'resnet20_dvs128':
         from models.MS_ResNet_fast import resnet20_dvs128
-        net = resnet20_dvs128(num_classes=num_classes, in_channels=in_channels, T=T)
+        net = resnet20_dvs128(num_classes=num_classes, in_channels=in_channels, T=T,
+                              sequential=sequential)
     elif args.net == 'resnet110_dvs128':
         from models.MS_ResNet_fast import resnet110_dvs128
-        net = resnet110_dvs128(num_classes=num_classes, in_channels=in_channels, T=T)
+        net = resnet110_dvs128(num_classes=num_classes, in_channels=in_channels, T=T,
+                               sequential=sequential)
     else:
         print('the network name you have entered is not supported yet')
         sys.exit()
