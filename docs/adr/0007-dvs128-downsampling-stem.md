@@ -16,3 +16,9 @@ Add a single spiking conv layer (3×3, stride 2, padding 1, followed by BatchNor
 
 ## Consequences
 `resnet110_dvs128` has one additional spiking conv layer compared to `resnet110_cifar`. The first residual stage operates at 64×64 instead of 32×32, meaning it is ~4× more expensive per layer than the CIFAR variant. This cost is accepted as inherent to the larger sensor resolution.
+
+## Superseded — architectural convergence with ADR-0009
+
+When CIFAR-10-DVS was later given the same stride-2 treatment (ADR-0009), `ResNet_CIFAR` gained a `dvs` flag that sets `conv1` stride to 2, producing an identical forward graph to the former `ResNet_DVS128` class. The only difference was the module name (`conv1` vs `stem`), which affected only checkpoint key names.
+
+`ResNet_DVS128` has therefore been removed. The factory functions `resnet20_dvs128` and `resnet110_dvs128` now delegate directly to `ResNet_CIFAR(dvs=True)`, unifying both DVS datasets under a single class. No DVS128 checkpoints existed at the time of this change so there is no migration concern.

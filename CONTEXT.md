@@ -33,14 +33,14 @@ Model names encode architecture depth and structural family, not dataset. The cl
 | Name | Architecture family | Typical use |
 |---|---|---|
 | `resnet18`, `resnet34`, `resnet104` | ImageNet stem (7×7 stride-2 + maxpool, 4 stages) | ImageNet |
-| `resnet20_cifar` | CIFAR stem (3×3, stride-1 static / stride-2 DVS, 3 stages, n=3) | CIFAR-10-DVS (paper's depth) |
-| `resnet110_cifar` | CIFAR stem (3×3, stride-1 static / stride-2 DVS, 3 stages, n=18) | CIFAR-10, CIFAR-100 |
-| `resnet20_dvs128` | CIFAR stem + dedicated stride-2 spiking conv stem (128→64), n=3 | DVS128 Gesture |
-| `resnet110_dvs128` | CIFAR stem + dedicated stride-2 spiking conv stem (128→64), n=18 | DVS128 Gesture (ablation) |
+| `resnet20_cifar` | `ResNet_CIFAR`, n=3: stride-1 conv1 (static) / stride-2 conv1 (DVS) | CIFAR-10, CIFAR-10-DVS |
+| `resnet110_cifar` | `ResNet_CIFAR`, n=18: same conv1 logic | CIFAR-100, CIFAR-10-DVS ablation |
+| `resnet20_dvs128` | Delegates to `ResNet_CIFAR(dvs=True, n=3)` — identical architecture | DVS128 Gesture |
+| `resnet110_dvs128` | Delegates to `ResNet_CIFAR(dvs=True, n=18)` — identical architecture | DVS128 Gesture (ablation) |
 
-When `dvs=True`, `ResNet_CIFAR` sets `conv1` stride to 2, reducing native 128×128 input to 64×64 before the first residual stage — matching Hu et al. (2024) and Fang et al. (arXiv:2007.05785). Static datasets keep stride-1. See ADR-0009.
+`ResNet_CIFAR` is the single class for all small-image and DVS datasets. When `dvs=True` it sets `conv1` stride to 2 (128×128 → 64×64 before the residual stages), matching Hu et al. (2024) and Fang et al. (arXiv:2007.05785). Static datasets use stride-1. The former dedicated `ResNet_DVS128` class was removed after ADR-0009 made it architecturally redundant — see ADR-0007 for the full history.
 
-All variants accept `in_channels` and `num_classes` as constructor arguments.
+All variants accept `in_channels`, `num_classes`, `T`, and `dvs` as constructor arguments.
 
 ## Unified Training Script
 A single `train_hpc.py` entry point for all datasets, selected via `--dataset`. Dataset-specific parameters are resolved from an inline `DATASET_CONFIGS` dict keyed by dataset name. The training loop, checkpointing, and logging are shared. The previous per-dataset scripts (`train_amp_hpc.py`, `train_cifar10_hpc.py`) are kept for reference only.

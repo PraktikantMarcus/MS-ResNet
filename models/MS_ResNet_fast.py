@@ -320,15 +320,16 @@ class ResNet_CIFAR(nn.Module):
     and permutes to (T, B, C, H, W) before processing.
     """
 
-    def __init__(self, n, num_classes=10, in_channels=3, T=5, dvs=False):
+    def __init__(self, n, num_classes=10, in_channels=3, T=5, dvs=False, conv1_stride=None):
         super().__init__()
         self.T = T
         self.dvs = dvs
         self.in_channels = 16
-        # DVS inputs arrive at native 128×128; stride-2 reduces to 64×64 before
-        # the residual stages, matching the paper's "additional downsampling at
-        # the first CONV stage" (Hu et al. 2024, following Fang et al. 2021).
-        conv1_stride = 2 if dvs else 1
+        # Default: stride-2 for DVS (128→64 before residual stages, ADR-0009),
+        # stride-1 for static.  Pass conv1_stride explicitly to override —
+        # e.g. conv1_stride=1 for full-resolution DVS experiments (ADR-0010).
+        if conv1_stride is None:
+            conv1_stride = 2 if dvs else 1
         self.conv1 = nn.Sequential(
             Snn_Conv2d(in_channels, 16, kernel_size=3, stride=conv1_stride, padding=1, bias=False),
             batch_norm_2d(16),
@@ -365,56 +366,23 @@ class ResNet_CIFAR(nn.Module):
         return output
 
 
-class ResNet_DVS128(nn.Module):
-    """MS-ResNet for DVS128 Gesture (128×128 input).
-
-    Identical to ResNet_CIFAR but prefixed with a single stride-2 spiking
-    conv stem that reduces 128×128 → 64×64 before the residual stages
-    (ADR 0007). Always expects DVS input: (B, T, C, H, W) from SpikingJelly.
-    """
-
-    def __init__(self, n, num_classes=11, in_channels=2, T=16):
-        super().__init__()
-        self.T = T
-        self.in_channels = 16
-        # Stride-2 stem: 128×128 → 64×64, maps in_channels → 16
-        self.stem = nn.Sequential(
-            Snn_Conv2d(in_channels, 16, kernel_size=3, stride=2, padding=1, bias=False),
-            batch_norm_2d(16),
-        )
-        self.mem_update = mem_update()
-        self.stage1 = self._make_layer(BasicBlock_18, 16, n, stride=1)
-        self.stage2 = self._make_layer(BasicBlock_18, 32, n, stride=2)
-        self.stage3 = self._make_layer(BasicBlock_18, 64, n, stride=2)
-        self.fc = nn.Linear(64 * BasicBlock_18.expansion, num_classes)
-
-    def _make_layer(self, block, out_channels, num_blocks, stride):
-        strides = [stride] + [1] * (num_blocks - 1)
-        layers = []
-        for s in strides:
-            layers.append(block(self.in_channels, out_channels, s))
-            self.in_channels = out_channels * block.expansion
-        return nn.Sequential(*layers)
-
-    def forward(self, x):
-        # SpikingJelly returns (B, T, C, H, W); network expects (T, B, C, H, W)
-        input = x.permute(1, 0, 2, 3, 4).contiguous()
-        output = self.stem(input)
-        output = self.stage1(output)
-        output = self.stage2(output)
-        output = self.stage3(output)
-        output = self.mem_update(output)
-        output = F.adaptive_avg_pool3d(output, (None, 1, 1))
-        output = output.view(output.size()[0], output.size()[1], -1)
-        output = output.sum(dim=0) / output.size()[0]
-        output = self.fc(output)
-        return output
-
-
 def resnet20_cifar(num_classes=10, in_channels=3, T=5, dvs=False):
     """MS-ResNet-20 for small images: n=3, 6×3+2=20 weight layers.
     Matches the depth used by Hu et al. (2024) for CIFAR-10-DVS."""
     return ResNet_CIFAR(n=3, num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs)
+
+
+def resnet20_cifar_fullres(num_classes=10, in_channels=3, T=5):
+    """MS-ResNet-20 for DVS at full spatial resolution (no conv1 downsampling).
+    Stage1 runs at 128×128; stage2 at 64×64; stage3 at 32×32. See ADR-0010."""
+    return ResNet_CIFAR(n=3, num_classes=num_classes, in_channels=in_channels,
+                        T=T, dvs=True, conv1_stride=1)
+
+
+def resnet110_cifar_fullres(num_classes=10, in_channels=3, T=5):
+    """MS-ResNet-110 for DVS at full spatial resolution. See ADR-0010."""
+    return ResNet_CIFAR(n=18, num_classes=num_classes, in_channels=in_channels,
+                        T=T, dvs=True, conv1_stride=1)
 
 
 def resnet110_cifar(num_classes=10, in_channels=3, T=5, dvs=False):
@@ -423,10 +391,15 @@ def resnet110_cifar(num_classes=10, in_channels=3, T=5, dvs=False):
 
 
 def resnet20_dvs128(num_classes=11, in_channels=2, T=16):
-    """MS-ResNet-20 for DVS128 Gesture: stride-2 stem + 3 residual stages, n=3."""
-    return ResNet_DVS128(n=3, num_classes=num_classes, in_channels=in_channels, T=T)
+    """MS-ResNet-20 for DVS128 Gesture.
+
+    Delegates to ResNet_CIFAR(dvs=True, n=3): the stride-2 conv1 in ResNet_CIFAR
+    provides the same 128→64 downsampling as the former dedicated ResNet_DVS128
+    class. See ADR-0007 and ADR-0009.
+    """
+    return ResNet_CIFAR(n=3, num_classes=num_classes, in_channels=in_channels, T=T, dvs=True)
 
 
 def resnet110_dvs128(num_classes=11, in_channels=2, T=16):
-    """MS-ResNet-110 for DVS128 Gesture: stride-2 stem + 3 residual stages, n=18."""
-    return ResNet_DVS128(n=18, num_classes=num_classes, in_channels=in_channels, T=T)
+    """MS-ResNet-110 for DVS128 Gesture. See resnet20_dvs128 for rationale."""
+    return ResNet_CIFAR(n=18, num_classes=num_classes, in_channels=in_channels, T=T, dvs=True)

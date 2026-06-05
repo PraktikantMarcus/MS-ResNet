@@ -42,6 +42,12 @@ def get_network(args, cfg=None):
     elif args.net == 'resnet110_cifar':
         from models.MS_ResNet_fast import resnet110_cifar
         net = resnet110_cifar(num_classes=num_classes, in_channels=in_channels, T=T, dvs=dvs)
+    elif args.net == 'resnet20_cifar_fullres':
+        from models.MS_ResNet_fast import resnet20_cifar_fullres
+        net = resnet20_cifar_fullres(num_classes=num_classes, in_channels=in_channels, T=T)
+    elif args.net == 'resnet110_cifar_fullres':
+        from models.MS_ResNet_fast import resnet110_cifar_fullres
+        net = resnet110_cifar_fullres(num_classes=num_classes, in_channels=in_channels, T=T)
     elif args.net == 'resnet20_dvs128':
         from models.MS_ResNet_fast import resnet20_dvs128
         net = resnet20_dvs128(num_classes=num_classes, in_channels=in_channels, T=T)
