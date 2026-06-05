@@ -46,11 +46,11 @@ DATASET_CONFIGS = {
         loss='ce',
     ),
     'cifar10dvs': dict(
-        model='resnet110_cifar',
-        T=10, in_channels=2, num_classes=10, dvs=True,
-        spatial=None,  # native 128×128; stride-2 in conv1 handles downsampling (Fang et al. 2021)
-        epochs=125, batch_size=128, lr=1e-3,
-        optimizer='adamw', weight_decay=0.08,   #before was 0.06
+        model='resnet20_cifar_fullres',
+        T=20, in_channels=2, num_classes=10, dvs=True,
+        spatial=None,  # native 128×128; no conv1 downsampling — stage1 at 128×128 (ADR-0010)
+        epochs=125, batch_size=32, lr=1e-3,
+        optimizer='adamw', weight_decay=0.06,
         distributed=False, workers=4,
         loss='ce',
     ),
