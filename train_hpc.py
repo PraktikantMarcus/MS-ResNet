@@ -49,9 +49,10 @@ DATASET_CONFIGS = {
         model='resnet20_cifar_fullres',
         T=20, in_channels=2, num_classes=10, dvs=True,
         spatial=None,  # native 128×128; no conv1 downsampling — stage1 at 128×128 (ADR-0010)
-        epochs=125, batch_size=128, lr=1e-3,
+        epochs=100, batch_size=128, lr=0.1,
         sequential=True,  # sequential conv matches supervisor's setup; enables B=128 at fullres
-        optimizer='adamw', weight_decay=0.06,
+        optimizer='sgd', weight_decay=1e-4, momentum=0.9,
+        lr_milestones=[40, 60, 80], lr_gamma=0.2,  # matches supervisor exactly; remove to fall back to cosine
         distributed=False, workers=4,
         loss='ce',
     ),
@@ -394,8 +395,12 @@ if __name__ == '__main__':
                               momentum=cfg.get('momentum', 0.9),
                               weight_decay=cfg['weight_decay'])
 
-    scheduler = optim.lr_scheduler.CosineAnnealingLR(
-        optimizer, T_max=EPOCHS, eta_min=0)
+    if 'lr_milestones' in cfg:
+        scheduler = optim.lr_scheduler.MultiStepLR(
+            optimizer, milestones=cfg['lr_milestones'], gamma=cfg.get('lr_gamma', 0.1))
+    else:
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(
+            optimizer, T_max=EPOCHS, eta_min=0)
     scaler = GradScaler('cuda')
 
     # ------------------------------------------------------------------
