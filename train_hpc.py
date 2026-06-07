@@ -46,15 +46,15 @@ DATASET_CONFIGS = {
         loss='ce',
     ),
     'cifar10dvs': dict(
-        model='resnet20_cifar_fullres',
+        model='resnet110_cifar_fullres',
         T=20, in_channels=2, num_classes=10, dvs=True,
         spatial=None,  # native 128×128; no conv1 downsampling — stage1 at 128×128 (ADR-0010)
-        epochs=100, batch_size=64, lr=0.1,
+        epochs=300, batch_size=64, lr=0.4,  # lr scaled 0.1×4 GPUs (linear scaling rule)
         sequential=True,  # sequential conv matches supervisor's setup; enables B=128 at fullres
         optimizer='sgd', weight_decay=1e-4, momentum=0.9,
-        lr_milestones=[40, 60, 80], lr_gamma=0.2,  # matches supervisor exactly; remove to fall back to cosine
-        distributed=False, workers=4,
-        loss='ce',
+        lr_milestones=[120, 180, 240], lr_gamma=0.2,  # [40,60,80] scaled to 300 epochs; remove to fall back to cosine
+        distributed=True, workers=4,
+        loss='label_smooth',
     ),
     'dvs128': dict(
         model='resnet20_dvs128',
@@ -197,13 +197,22 @@ def build_dataloaders(dataset_name, cfg, data_path):
                 imgs = imgs.view(B_, T_, C_, spatial, spatial)
             return imgs, torch.tensor(labels)
 
-        train_loader = DataLoader(train_set, batch_size=batch, shuffle=True,
+        if cfg.get('distributed'):
+            train_sampler = DistributedSampler(train_set)
+            val_sampler   = DistributedSampler(val_set, shuffle=False)
+        else:
+            train_sampler = val_sampler = None
+        train_loader = DataLoader(train_set, batch_size=batch,
+                                  shuffle=(train_sampler is None),
+                                  sampler=train_sampler,
                                   num_workers=workers, pin_memory=True,
                                   collate_fn=dvs_collate_train)
-        val_loader   = DataLoader(val_set,   batch_size=batch, shuffle=False,
+        val_loader   = DataLoader(val_set,   batch_size=batch,
+                                  shuffle=False,
+                                  sampler=val_sampler,
                                   num_workers=workers, pin_memory=True,
                                   collate_fn=dvs_collate_val)
-        return train_loader, val_loader, None
+        return train_loader, val_loader, train_sampler
 
     if dataset_name == 'dvs128':
         from spikingjelly.datasets.dvs128_gesture import DVS128Gesture
